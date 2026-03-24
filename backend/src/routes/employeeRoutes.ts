@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { employeeController } from '../controllers/employeeController';
-import authenticateJWT from '../middlewares/auth';
-import { authorizeRoles, isolateOrganization } from '../middlewares/rbac';
+import { employeeController } from '../controllers/employeeController.js';
+import authenticateJWT from '../middlewares/auth.js';
+import { authorizeRoles, isolateOrganization } from '../middlewares/rbac.js';
+import { require2FAIfWalletUpdate } from '../middlewares/require2faIfWalletUpdate.js';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.patch(
   '/:id',
   authorizeRoles('EMPLOYER'),
   isolateOrganization,
+  require2FAIfWalletUpdate,
   employeeController.update.bind(employeeController)
 );
 
@@ -67,7 +69,7 @@ router.delete(
  * @route POST /api/employees/bulk-import
  * @desc Bulk import employees from CSV
  */
-import { bulkImportController } from '../controllers/bulkImportController';
+import { bulkImportController } from '../controllers/bulkImportController.js';
 router.post('/bulk-import', bulkImportController.import.bind(bulkImportController));
 
 export default router;

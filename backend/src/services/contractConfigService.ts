@@ -115,11 +115,12 @@ export class ContractConfigService {
     for (const [key, value] of Object.entries(process.env)) {
       // Match pattern: {CONTRACT_TYPE}_{NETWORK}_CONTRACT_ID
       const contractIdMatch = key.match(/^(.+)_(TESTNET|MAINNET)_CONTRACT_ID$/);
-      
+
       if (contractIdMatch && value) {
-        const contractType = contractIdMatch[1].toLowerCase();
-        const network = contractIdMatch[2].toLowerCase() as 'testnet' | 'mainnet';
+        const contractType = contractIdMatch[1]!.toLowerCase();
+        const network = contractIdMatch[2]!.toLowerCase() as 'testnet' | 'mainnet';
         const contractKey = `${contractType}_${network}`;
+
 
         // Skip if already processed
         if (processedContracts.has(contractKey)) {
@@ -155,7 +156,7 @@ export class ContractConfigService {
   getContractEntries(): ContractEntry[] {
     // Try TOML first
     const tomlEntries = this.parseTomlConfig();
-    
+
     if (tomlEntries.length > 0) {
       logger.info(`Loaded ${tomlEntries.length} contracts from TOML configuration`);
       return tomlEntries;
@@ -163,7 +164,7 @@ export class ContractConfigService {
 
     // Fall back to environment variables
     const envEntries = this.parseEnvVarConfig();
-    
+
     if (envEntries.length > 0) {
       logger.info(`Loaded ${envEntries.length} contracts from environment variables`);
       return envEntries;

@@ -4,7 +4,10 @@ export interface WalletContextType {
   address: string | null;
   walletName: string | null;
   isConnecting: boolean;
-  connect: () => Promise<void>;
+  isInitialized: boolean;
+  walletExtensionAvailable: boolean;
+  connect: () => Promise<string | null>;
+  requireWallet: () => Promise<string | null>;
   disconnect: () => void;
   signTransaction: (xdr: string) => Promise<string>;
 }

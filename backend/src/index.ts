@@ -1,27 +1,22 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
 import dotenv from 'dotenv';
-import passport from './config/passport.js';
-import authRoutes from './routes/authRoutes.js';
+import { createServer } from 'http';
+import app from './app.js';
+import logger from './utils/logger.js';
+import config from './config/index.js';
+import { initializeSocket } from './services/socketService.js';
 
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 4000;
+const server = createServer(app);
 
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(passport.initialize());
+// Initialize Socket.IO
+initializeSocket(server);
 
-// Routes
-app.use('/auth', authRoutes);
+const PORT = config.port || process.env.PORT || 4000;
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+  logger.info(`Environment: ${config.nodeEnv}`);
+  logger.info(`Health check: http://localhost:${PORT}/health`);
+  logger.info(`Contract registry: http://localhost:${PORT}/api/contracts`);
 });

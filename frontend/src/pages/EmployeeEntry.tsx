@@ -7,6 +7,7 @@ import { useAutosave } from '../hooks/useAutosave';
 import { generateWallet } from '../services/stellar';
 import { useTranslation } from 'react-i18next';
 import { useNotification } from '../hooks/useNotification';
+import { HelpLink } from '../components/HelpLink';
 
 interface EmployeeFormState {
   fullName: string;
@@ -80,7 +81,7 @@ export default function EmployeeEntry() {
     walletAddress?: string;
     employeeName?: string;
   } | null>(null);
-  const { notifySuccess } = useNotification();
+  const { notifySuccess, notify } = useNotification();
   const { saving, lastSaved, loadSavedData } = useAutosave<EmployeeFormState>(
     'employee-entry-draft',
     formData
@@ -91,8 +92,9 @@ export default function EmployeeEntry() {
     const saved = loadSavedData();
     if (saved) {
       setFormData(saved);
+      notify('Recovered unsaved employee draft');
     }
-  }, [loadSavedData]);
+  }, [loadSavedData, notify]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -248,17 +250,22 @@ export default function EmployeeEntry() {
               onChange={handleChange}
               placeholder="Leave blank to generate a wallet"
             />
-            <Select
-              id="role"
-              fieldSize="md"
-              label="Role"
-              value={formData.role}
-              onChange={(e) => handleSelectChange('role', e.target.value)}
-            >
-              <option value="contractor">Contractor</option>
-              <option value="full-time">Full Time</option>
-              <option value="part-time">Part Time</option>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                id="currency"
+                fieldSize="md"
+                label="Preferred Currency"
+                value={formData.currency}
+                onChange={(e) => handleSelectChange('currency', e.target.value)}
+              >
+                <option value="USDC">USDC</option>
+                <option value="XLM">XLM</option>
+                <option value="EURC">EURC</option>
+              </Select>
+              <div className="pt-6">
+                <HelpLink topic="trustline" variant="icon-text" size="sm" />
+              </div>
+            </div>
             <Select
               id="currency"
               fieldSize="md"
@@ -283,9 +290,10 @@ export default function EmployeeEntry() {
     <div className="flex-1 flex flex-col items-center justify-start p-12 max-w-6xl mx-auto w-full">
       <div className="w-full mb-12 flex items-end justify-between border-b border-hi pb-8">
         <div>
-          <h1 className="text-4xl font-black mb-2 tracking-tight">
+          <h1 className="text-4xl font-black mb-2 tracking-tight flex items-center gap-3">
             {t('employees.title', { highlight: '' }).replace('{{highlight}}', '')}
             <span className="text-accent"> {t('employees.titleHighlight')}</span>
+            <HelpLink topic="add employee" variant="icon" size="sm" />
           </h1>
           <p className="text-muted font-mono text-sm tracking-wider uppercase">
             {t('employees.subtitle')}

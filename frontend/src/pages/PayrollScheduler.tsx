@@ -10,10 +10,11 @@ import { useTranslation } from 'react-i18next';
 import { Card, Heading, Text, Button, Input, Select } from '@stellar/design-system';
 import { SchedulingWizard } from '../components/SchedulingWizard';
 import { CountdownTimer } from '../components/CountdownTimer';
-import { useFeeEstimation } from '../hooks/useFeeEstimation';
-import type { ValidationReport } from '../services/stellarValidation';
-import { PreflightReportPanel } from '../components/PreflightReportPanel';
-import { Keypair } from '@stellar/stellar-sdk';
+import { BulkPaymentStatusTracker } from '../components/BulkPaymentStatusTracker';
+
+import { ContractErrorPanel } from '../components/ContractErrorPanel';
+import { parseContractError, type ContractErrorDetail } from '../utils/contractErrorParser';
+import { HelpLink } from '../components/HelpLink';
 
 interface PayrollFormState {
   employeeName: string;
@@ -58,7 +59,7 @@ const initialFormState: PayrollFormState = {
 
 export default function PayrollScheduler() {
   const { t } = useTranslation();
-  const { notifySuccess, notifyError } = useNotification();
+  const { notifySuccess, notify } = useNotification();
   const { socket, subscribeToTransaction, unsubscribeFromTransaction } = useSocket();
   const [formData, setFormData] = useState<PayrollFormState>(initialFormState);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
@@ -68,6 +69,7 @@ export default function PayrollScheduler() {
     timeOfDay: string;
   } | null>(null);
   const [nextRunDate, setNextRunDate] = useState<Date | null>(null);
+  const [contractError, setContractError] = useState<ContractErrorDetail | null>(null);
 
   const { validatePreflight } = useFeeEstimation();
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
@@ -103,8 +105,9 @@ export default function PayrollScheduler() {
     const saved = loadSavedData();
     if (saved) {
       setFormData(saved);
+      notify('Recovered unsaved payroll draft');
     }
-  }, [loadSavedData]);
+  }, [loadSavedData, notify]);
 
   const handleScheduleComplete = (config: { frequency: string; timeOfDay: string }) => {
     setActiveSchedule(config);
@@ -128,7 +131,10 @@ export default function PayrollScheduler() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (simulationResult) resetSimulation();
+    if (simulationResult) {
+      resetSimulation();
+      setContractError(null);
+    }
   };
 
   useEffect(() => {
@@ -156,47 +162,30 @@ export default function PayrollScheduler() {
 
   const handleInitialize = async () => {
     if (!formData.employeeName || !formData.amount) {
-      notifyError('Missing required fields', 'Please provide employee name and amount.');
+      setContractError({
+        code: 'MISSING_FIELDS',
+        message: 'Missing required fields',
+        suggestedAction: 'Please provide employee name and amount.',
+      });
       return;
     }
 
-    setIsPreflighting(true);
-    setValidationReport(null);
+    setContractError(null);
 
-    try {
-      const empKeypair = Keypair.fromSecret(MOCK_EMPLOYER_SECRET);
-      const mockBatch = [{
-        id: Math.random().toString(36).substr(2, 9),
-        name: formData.employeeName,
-        walletAddress: formData.walletAddress || '',
-        amount: String(formData.amount),
-        assetCode: 'USDC',
-      }];
+    // Mock XDR for simulation demonstration
+    const mockXdr =
+      'AAAAAgAAAABmF8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
-      const report = await validatePreflight(empKeypair.publicKey(), mockBatch);
-      setValidationReport(report);
-
-      if (!report.success) {
-        notifyError('Preflight validation failed', 'Please review the errors before simulating.');
-        setIsPreflighting(false);
-        return;
-      }
-      setIsPreflighting(false);
-
-      // Mock XDR for simulation demonstration
-      const mockXdr =
-        'AAAAAgAAAABmF8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-
-      await simulate({ envelopeXdr: mockXdr });
-    } catch (err) {
-      console.error(err);
-      notifyError('Preflight Error', 'An error occurred during preflight checks.');
-      setIsPreflighting(false);
+    const result = await simulate({ envelopeXdr: mockXdr });
+    if (result && !result.success) {
+      const parsed = parseContractError(result.envelopeXdr, result.description);
+      setContractError(parsed);
     }
   };
 
   const handleBroadcast = async () => {
     setIsBroadcasting(true);
+    setContractError(null);
     try {
       const mockRecipientPublicKey = generateWallet().publicKey;
 
@@ -260,7 +249,11 @@ export default function PayrollScheduler() {
       setFormData(initialFormState);
     } catch (err) {
       console.error(err);
-      notifyError('Broadcast failed', 'Please check your network connection and try again.');
+      const parsed = parseContractError(
+        undefined,
+        err instanceof Error ? err.message : 'Broadcast failed'
+      );
+      setContractError(parsed);
     } finally {
       setIsBroadcasting(false);
     }
@@ -277,9 +270,15 @@ export default function PayrollScheduler() {
     <div className="flex-1 flex flex-col items-center justify-start p-12 max-w-6xl mx-auto w-full">
       <div className="w-full mb-12 flex items-end justify-between border-b border-hi pb-8">
         <div>
-          <Heading as="h1" size="lg" weight="bold" addlClassName="mb-2 tracking-tight">
+          <Heading
+            as="h1"
+            size="lg"
+            weight="bold"
+            addlClassName="mb-2 tracking-tight flex items-center gap-3"
+          >
             {t('payroll.title', 'Workforce')}{' '}
             <span className="text-accent">{t('payroll.titleHighlight', 'Scheduler')}</span>
+            <HelpLink topic="schedule payroll" variant="icon" size="sm" />
           </Heading>
           <Text
             as="p"
@@ -455,11 +454,16 @@ export default function PayrollScheduler() {
           </div>
 
           <div className="lg:col-span-2 flex flex-col gap-6">
+            <ContractErrorPanel error={contractError} onClear={() => setContractError(null)} />
+
             <TransactionSimulationPanel
               result={simulationResult}
               isSimulating={isSimulating}
               processError={simulationProcessError}
-              onReset={resetSimulation}
+              onReset={() => {
+                resetSimulation();
+                setContractError(null);
+              }}
             />
 
             {validationReport && validationReport.success === false && (
@@ -486,6 +490,7 @@ export default function PayrollScheduler() {
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
                 Pre-flight Validation
+                <HelpLink topic="transaction simulation" variant="icon" size="sm" />
               </Heading>
               <Text
                 as="p"
@@ -558,6 +563,10 @@ export default function PayrollScheduler() {
             </ul>
           )}
         </Card>
+      </div>
+
+      <div className="w-full">
+        <BulkPaymentStatusTracker organizationId={1} />
       </div>
     </div>
   );

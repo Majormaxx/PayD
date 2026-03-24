@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   Menu,
   X,
+  PieChart,
 } from 'lucide-react';
 import { Avatar } from './Avatar';
 
@@ -126,6 +127,23 @@ const AppNav: React.FC = () => {
         History
       </NavLink>
 
+      <NavLink
+        to="/revenue-split"
+        className={({ isActive }) =>
+          `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold transition ${
+            isActive
+              ? 'text-(--accent) bg-white/5'
+              : 'text-(--muted) hover:bg-white/10 hover:text-white'
+          }`
+        }
+        onClick={() => setMobileOpen(false)}
+      >
+        <span className="opacity-70">
+          <PieChart className="w-4 h-4" />
+        </span>
+        <span className="hidden sm:inline">Revenue Split</span>
+      </NavLink>
+
       <div className="w-px h-5 bg-(--border-hi) mx-2" />
       <NavLink
         to="/admin"
@@ -159,7 +177,7 @@ const AppNav: React.FC = () => {
       <Link
         to="/help"
         onClick={() => setMobileOpen(false)}
-        className="text-blue-500 text-xs underline"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold transition text-(--accent) hover:bg-(--accent)/10"
       >
         Help
       </Link>
