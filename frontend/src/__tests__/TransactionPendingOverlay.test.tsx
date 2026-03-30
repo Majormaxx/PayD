@@ -50,11 +50,12 @@ describe('TransactionPendingOverlay', () => {
     render(<TransactionPendingOverlay isVisible={true} status="success" txHash={txHash} />);
 
     expect(screen.getByText('Transaction Confirmed')).toBeInTheDocument();
-    expect(screen.getByText(/abc123def...456789/)).toBeInTheDocument();
 
     const explorerLink = screen.getByLabelText('View transaction on explorer');
     expect(explorerLink).toBeInTheDocument();
-    expect(explorerLink).toHaveAttribute('href');
+    expect(explorerLink).toHaveAttribute('href', expect.stringContaining(txHash));
+
+    expect(screen.getByText('Transaction Hash')).toBeInTheDocument();
   });
 
   test('displays error state with default message', () => {
@@ -99,6 +100,7 @@ describe('TransactionPendingOverlay', () => {
     const overlay = screen.getByRole('dialog');
     expect(overlay).toBeInTheDocument();
     expect(overlay).toHaveAttribute('aria-live', 'polite');
+    expect(overlay).toHaveAttribute('aria-label', 'Broadcasted to Stellar');
   });
 
   test('truncates long txHash correctly', () => {
