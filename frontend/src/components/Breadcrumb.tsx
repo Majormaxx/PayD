@@ -27,7 +27,7 @@ interface Crumb {
   href: string;
 }
 
-function buildCrumbs(pathname: string): Crumb[] {
+export function buildCrumbs(pathname: string): Crumb[] {
   const segments = pathname.split('/').filter(Boolean);
   const crumbs: Crumb[] = [{ label: 'Home', href: '/' }];
 

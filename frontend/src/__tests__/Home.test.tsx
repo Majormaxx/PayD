@@ -5,6 +5,15 @@ import Home from '../pages/Home';
 
 const mockNavigate = vi.fn();
 
+vi.mock('@stellar/design-system', () => ({
+  Icon: {
+    Rocket01: () => <div data-testid="icon-rocket" />,
+    CreditCard01: () => <div data-testid="icon-credit-card" />,
+    Users01: () => <div data-testid="icon-users" />,
+    ShieldTick: () => <div data-testid="icon-shield-tick" />,
+  },
+}));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import { EmployeeList } from '../EmployeeList';
 
@@ -50,7 +50,9 @@ describe('EmployeeList', () => {
     fireEvent.change(searchInput, { target: { value: 'Bob' } });
 
     expect(screen.getByLabelText(`Employee name: ${employee.name}`)).toBeTruthy();
-    vi.advanceTimersByTime(350);
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
     expect(screen.queryByLabelText(`Employee name: ${employee.name}`)).toBeNull();
     expect(screen.getByLabelText(`Employee name: ${secondEmployee.name}`)).toBeTruthy();
 

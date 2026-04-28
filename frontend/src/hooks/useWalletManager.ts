@@ -66,7 +66,18 @@ export function useWalletManager(connectionTimeoutMs: number = 15000) {
 
       try {
         newKit.setWallet(lastWalletName);
-        const account = await newKit.getAddress();
+
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const timeoutPromise = new Promise<{ address: string }>((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error('Silent reconnection timed out')),
+            connectionTimeoutMs
+          );
+        });
+
+        const account = await Promise.race([newKit.getAddress(), timeoutPromise]);
+        clearTimeout(timeoutId!);
+
         if (account?.address) {
           setAddress(account.address);
           notifyWalletEvent(
@@ -74,8 +85,9 @@ export function useWalletManager(connectionTimeoutMs: number = 15000) {
             `${account.address.slice(0, 6)}...${account.address.slice(-4)} via ${lastWalletName}`
           );
         }
-      } catch {
+      } catch (error) {
         // Silent reconnection should not block app flow.
+        console.warn('Silent reconnection failed or timed out:', error);
       } finally {
         setIsConnecting(false);
         setIsInitialized(true);
@@ -116,7 +128,12 @@ export function useWalletManager(connectionTimeoutMs: number = 15000) {
         let timeoutId: ReturnType<typeof setTimeout>;
         const timeoutPromise = new Promise<{ address: string }>((_, reject) => {
           timeoutId = setTimeout(
-            () => reject(new Error('Connection timed out after 15 seconds.')),
+            () =>
+              reject(
+                new Error(
+                  'Wallet connection timed out after 15 seconds. Confirm the request in your wallet and try again.'
+                )
+              ),
             connectionTimeoutMs
           );
         });
@@ -131,6 +148,7 @@ export function useWalletManager(connectionTimeoutMs: number = 15000) {
           'connected',
           `${newAddress.slice(0, 6)}...${newAddress.slice(-4)} via ${selectedWalletId}`
         );
+        setWalletModalOpen(false); // Close on success
         return newAddress;
       } catch (error) {
         console.error('Failed to connect wallet:', error);
@@ -138,10 +156,9 @@ export function useWalletManager(connectionTimeoutMs: number = 15000) {
           'connection_failed',
           error instanceof Error ? error.message : 'Please try again.'
         );
-        return null;
+        throw error;
       } finally {
         setIsConnecting(false);
-        setWalletModalOpen(false);
       }
     },
     [notifyWalletEvent, connectionTimeoutMs]

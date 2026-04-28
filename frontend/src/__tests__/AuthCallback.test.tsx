@@ -40,7 +40,7 @@ describe('AuthCallback', () => {
     );
 
     await waitFor(() => {
-      expect(setTokenFromCallbackMock).toHaveBeenCalledWith('test-token');
+      expect(setTokenFromCallbackMock).toHaveBeenCalledWith('test-token', null);
     });
 
     expect(navigateMock).toHaveBeenCalledWith('/employer/payroll', { replace: true });
