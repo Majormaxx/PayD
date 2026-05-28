@@ -34,9 +34,11 @@ export const getNotificationHistory = async (req: Request, res: Response) => {
       return res.json({ data: notifications });
     }
 
-    // Otherwise, get paginated history
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    // Otherwise, get paginated history. Clamp pagination to bound the query
+    // size and avoid unbounded scans / divide-by-zero on totalPages.
+    const MAX_LIMIT = 100;
+    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), MAX_LIMIT);
     const notificationType = req.query.notification_type as 'email' | 'push' | undefined;
     const status = req.query.status as 'sent' | 'failed' | 'pending' | undefined;
 

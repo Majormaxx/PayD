@@ -220,5 +220,17 @@
     "restartTour": "Reiniciar recorrido",
     "tourCompleted": "¡Recorrido completado!",
     "tourCompletedMessage": "Estás listo para comenzar a gestionar la nómina con PayD."
+  },
+  "revenueSplitDashboard": {
+    "titlePrefix": "División de Ingresos",
+    "titleHighlight": "Panel",
+    "subtitle": "Asignaciones respaldadas por contrato, saldos en vivo y distribuciones indexadas",
+    "connectWallet": "Conectar billetera",
+    "connected": "Conectado",
+    "currentAllocations": "Divisiones de asignación actuales",
+    "editAllocations": "Editar asignaciones",
+    "submitting": "Enviando...",
+    "liveBalances": "Saldos de destinatarios en vivo",
+    "historicalEvents": "Eventos de distribución históricos"
   }
 }
