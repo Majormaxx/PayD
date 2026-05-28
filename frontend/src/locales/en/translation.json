@@ -220,5 +220,17 @@
     "restartTour": "Restart Tour",
     "tourCompleted": "Tour completed!",
     "tourCompletedMessage": "You're all set to start managing payroll with PayD."
+  },
+  "revenueSplitDashboard": {
+    "titlePrefix": "Revenue Split",
+    "titleHighlight": "Dashboard",
+    "subtitle": "Contract-backed allocations, live balances, and indexed distributions",
+    "connectWallet": "Connect Wallet",
+    "connected": "Connected",
+    "currentAllocations": "Current Allocation Splits",
+    "editAllocations": "Edit Allocations",
+    "submitting": "Submitting...",
+    "liveBalances": "Live Recipient Balances",
+    "historicalEvents": "Historical Distribution Events"
   }
 }

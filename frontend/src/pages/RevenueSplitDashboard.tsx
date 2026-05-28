@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { ContractErrorPanel } from '../components/ContractErrorPanel';
 import { SkeletonLoader } from '../components/SkeletonLoader';
@@ -68,6 +69,7 @@ export default function RevenueSplitDashboard() {
   const [contractError, setContractError] = useState<ContractErrorDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const { t } = useTranslation();
   const { address, connect, requireWallet } = useWallet();
   const { sign } = useWalletSigning();
   const { notifyError, notifyPaymentSuccess, notifyPaymentFailure, notifyApiError } =
@@ -113,6 +115,11 @@ export default function RevenueSplitDashboard() {
     () =>
       events.reduce((sum, event) => sum + (Number.isFinite(event.amount) ? event.amount : 0), 0),
     [events]
+  );
+
+  const shortAddress = useMemo(
+    () => (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''),
+    [address]
   );
 
   useEffect(() => {
@@ -238,10 +245,11 @@ export default function RevenueSplitDashboard() {
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-zinc-800 pb-6">
         <div>
           <h1 className="text-4xl font-black tracking-tight">
-            Revenue Split <span className="text-accent">Dashboard</span>
+            {t('revenueSplitDashboard.titlePrefix')}{' '}
+            <span className="text-accent">{t('revenueSplitDashboard.titleHighlight')}</span>
           </h1>
           <p className="mt-2 font-mono text-sm tracking-wider text-zinc-300 uppercase">
-            Contract-backed allocations, live balances, and indexed distributions
+            {t('revenueSplitDashboard.subtitle')}
           </p>
         </div>
         {!address ? (
@@ -252,11 +260,11 @@ export default function RevenueSplitDashboard() {
             }}
             className="rounded-lg bg-accent px-4 py-2 font-bold text-black"
           >
-            Connect Wallet
+            {t('revenueSplitDashboard.connectWallet')}
           </button>
         ) : (
           <span className="font-mono text-xs text-zinc-400">
-            Connected: {address.slice(0, 6)}...{address.slice(-4)}
+            {t('revenueSplitDashboard.connected')}: {shortAddress}
           </span>
         )}
       </div>
@@ -281,7 +289,7 @@ export default function RevenueSplitDashboard() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className="card glass noise xl:col-span-1">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">Current Allocation Splits</h2>
+            <h2 className="text-lg font-bold">{t('revenueSplitDashboard.currentAllocations')}</h2>
             <span className="rounded-full border border-zinc-700 px-3 py-1 text-[11px] uppercase tracking-wide text-zinc-300">
               On-chain
             </span>
@@ -351,7 +359,7 @@ export default function RevenueSplitDashboard() {
 
         <section className="card glass noise xl:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">Edit Allocations</h2>
+            <h2 className="text-lg font-bold">{t('revenueSplitDashboard.editAllocations')}</h2>
             <button
               type="button"
               onClick={addRecipient}
@@ -405,7 +413,7 @@ export default function RevenueSplitDashboard() {
               disabled={isSaving || !isAllocationTotalValid}
               className="rounded-lg bg-accent px-4 py-2 font-bold text-black disabled:opacity-70"
             >
-              {isSaving ? 'Submitting...' : 'Edit Allocations'}
+              {isSaving ? t('revenueSplitDashboard.submitting') : t('revenueSplitDashboard.editAllocations')}
             </button>
           </div>
 
@@ -415,7 +423,7 @@ export default function RevenueSplitDashboard() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className="card glass noise xl:col-span-1">
-          <h2 className="mb-4 text-lg font-bold">Live Recipient Balances</h2>
+          <h2 className="mb-4 text-lg font-bold">{t('revenueSplitDashboard.liveBalances')}</h2>
           {recipientBalances.length === 0 ? (
             <p className="text-sm text-zinc-300">No recipient distributions available yet.</p>
           ) : (
@@ -443,7 +451,7 @@ export default function RevenueSplitDashboard() {
 
         <section className="card glass noise xl:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">Historical Distribution Events</h2>
+            <h2 className="text-lg font-bold">{t('revenueSplitDashboard.historicalEvents')}</h2>
             {orgPublicKey ? (
               <span className="font-mono text-[11px] text-zinc-300">
                 Org: {orgPublicKey.slice(0, 6)}...{orgPublicKey.slice(-4)}
