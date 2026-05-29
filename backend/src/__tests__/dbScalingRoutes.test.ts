@@ -1,9 +1,10 @@
 /**
- * Integration tests for the DB Scaling endpoints (Parts 39, 40 & 41).
+ * Integration tests for the DB Scaling endpoints (Parts 39, 40, 41 & 49).
  *
  * Issues #284 (Part 39) — lock contention, unused indexes
  * Issues #285 (Part 40) — replication lag, table sizes
  * Issues #286 (Part 41) — bgwriter stats, database stats
+ * Issues #294 (Part 49) — table I/O stats, index usage stats
  *
  * Strategy
  * ─────────
@@ -23,6 +24,8 @@ const mockGetReplicationLag   = jest.fn();
 const mockGetTableSizes       = jest.fn();
 const mockGetBgwriterStats    = jest.fn();
 const mockGetDatabaseStats    = jest.fn();
+const mockGetTableIoStats     = jest.fn();
+const mockGetIndexUsageStats  = jest.fn();
 
 // Also stub the methods used by existing controller handlers so the mock
 // implementation is complete (prevents "not a function" errors from other routes
@@ -54,6 +57,8 @@ jest.mock('../services/dbScalingService.js', () => ({
     getTableSizes:              mockGetTableSizes,
     getBgwriterStats:           mockGetBgwriterStats,
     getDatabaseStats:           mockGetDatabaseStats,
+    getTableIoStats:            mockGetTableIoStats,
+    getIndexUsageStats:         mockGetIndexUsageStats,
   })),
 }));
 
@@ -371,6 +376,103 @@ describe('GET /api/v1/db-scaling/database-stats', () => {
     mockGetDatabaseStats.mockRejectedValue(new Error('pg error'));
 
     const res = await request(app).get('/api/v1/db-scaling/database-stats');
+
+    expect(res.status).toBe(500);
+  });
+});
+
+// ─── Part 49: GET /api/v1/db-scaling/table-io-stats ──────────────────────────
+
+describe('GET /api/v1/db-scaling/table-io-stats', () => {
+  const fakeTableIo = [
+    {
+      table:              'payroll_items',
+      heapBlksRead:       12000,
+      heapBlksHit:        980000,
+      heapCacheHitRatio:  0.9878,
+      idxBlksRead:        3000,
+      idxBlksHit:         450000,
+      toastBlksRead:      0,
+      toastBlksHit:       0,
+    },
+  ];
+
+  it('returns 200 with per-table I/O snapshot', async () => {
+    mockGetTableIoStats.mockResolvedValue(fakeTableIo);
+
+    const res = await request(app).get('/api/v1/db-scaling/table-io-stats');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data[0]).toMatchObject({
+      table:             'payroll_items',
+      heapBlksRead:      12000,
+      heapCacheHitRatio: 0.9878,
+    });
+  });
+
+  it('returns 400 when limit is invalid', async () => {
+    const res = await request(app).get('/api/v1/db-scaling/table-io-stats?limit=0');
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('returns 500 when the service throws', async () => {
+    mockGetTableIoStats.mockRejectedValue(new Error('pg error'));
+
+    const res = await request(app).get('/api/v1/db-scaling/table-io-stats');
+
+    expect(res.status).toBe(500);
+  });
+});
+
+// ─── Part 49: GET /api/v1/db-scaling/index-usage-stats ───────────────────────
+
+describe('GET /api/v1/db-scaling/index-usage-stats', () => {
+  const fakeIndexUsage = [
+    {
+      table:       'payroll_items',
+      index:       'payroll_items_employee_id_idx',
+      idxScan:     82000,
+      idxTupRead:  1640000,
+      idxTupFetch: 1580000,
+    },
+    {
+      table:       'employees',
+      index:       'employees_org_id_idx',
+      idxScan:     0,
+      idxTupRead:  0,
+      idxTupFetch: 0,
+    },
+  ];
+
+  it('returns 200 with per-index usage snapshot', async () => {
+    mockGetIndexUsageStats.mockResolvedValue(fakeIndexUsage);
+
+    const res = await request(app).get('/api/v1/db-scaling/index-usage-stats');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data[0]).toMatchObject({
+      table:   'payroll_items',
+      index:   'payroll_items_employee_id_idx',
+      idxScan: 82000,
+    });
+    expect(res.body.data[1].idxScan).toBe(0);
+  });
+
+  it('returns 400 when limit is invalid', async () => {
+    const res = await request(app).get('/api/v1/db-scaling/index-usage-stats?limit=abc');
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('returns 500 when the service throws', async () => {
+    mockGetIndexUsageStats.mockRejectedValue(new Error('pg error'));
+
+    const res = await request(app).get('/api/v1/db-scaling/index-usage-stats');
 
     expect(res.status).toBe(500);
   });

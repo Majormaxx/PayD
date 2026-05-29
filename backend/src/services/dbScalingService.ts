@@ -493,6 +493,98 @@ export class DbScalingService {
     };
   }
 
+  // ── Part 49 (#294) ───────────────────────────────────────────────────────
+
+  /**
+   * #294a — Per-table I/O statistics from pg_statio_user_tables.
+   * Shows heap, index, and TOAST block reads from disk vs buffer-cache hits
+   * for each table.  High disk-read ratios signal cache pressure or cold data.
+   */
+  async getTableIoStats(limit = 30): Promise<{
+    table: string;
+    heapBlksRead: number;
+    heapBlksHit: number;
+    heapCacheHitRatio: number;
+    idxBlksRead: number;
+    idxBlksHit: number;
+    toastBlksRead: number;
+    toastBlksHit: number;
+  }[]> {
+    const rows = await this.prisma.$queryRaw<Array<{
+      relname: string;
+      heap_blks_read: bigint;
+      heap_blks_hit: bigint;
+      idx_blks_read: bigint;
+      idx_blks_hit: bigint;
+      toast_blks_read: bigint | null;
+      toast_blks_hit: bigint | null;
+    }>>`
+      SELECT
+        relname,
+        heap_blks_read,
+        heap_blks_hit,
+        COALESCE(idx_blks_read, 0)   AS idx_blks_read,
+        COALESCE(idx_blks_hit,  0)   AS idx_blks_hit,
+        COALESCE(toast_blks_read, 0) AS toast_blks_read,
+        COALESCE(toast_blks_hit,  0) AS toast_blks_hit
+      FROM pg_statio_user_tables
+      ORDER BY heap_blks_read + COALESCE(idx_blks_read, 0) DESC
+      LIMIT ${limit}
+    `;
+    return rows.map(r => {
+      const heapRead = Number(r.heap_blks_read);
+      const heapHit  = Number(r.heap_blks_hit);
+      return {
+        table:              r.relname,
+        heapBlksRead:       heapRead,
+        heapBlksHit:        heapHit,
+        heapCacheHitRatio:  heapRead + heapHit > 0 ? heapHit / (heapRead + heapHit) : 1,
+        idxBlksRead:        Number(r.idx_blks_read),
+        idxBlksHit:         Number(r.idx_blks_hit),
+        toastBlksRead:      Number(r.toast_blks_read),
+        toastBlksHit:       Number(r.toast_blks_hit),
+      };
+    });
+  }
+
+  /**
+   * #294b — Per-index access statistics from pg_stat_user_indexes.
+   * Surfaces scan counts, rows read, and rows fetched per index so operators
+   * can identify cold (never-scanned) indexes and highly-used ones.
+   */
+  async getIndexUsageStats(limit = 30): Promise<{
+    table: string;
+    index: string;
+    idxScan: number;
+    idxTupRead: number;
+    idxTupFetch: number;
+  }[]> {
+    const rows = await this.prisma.$queryRaw<Array<{
+      relname: string;
+      indexrelname: string;
+      idx_scan: bigint;
+      idx_tup_read: bigint;
+      idx_tup_fetch: bigint;
+    }>>`
+      SELECT
+        relname,
+        indexrelname,
+        idx_scan,
+        idx_tup_read,
+        idx_tup_fetch
+      FROM pg_stat_user_indexes
+      ORDER BY idx_scan DESC
+      LIMIT ${limit}
+    `;
+    return rows.map(r => ({
+      table:        r.relname,
+      index:        r.indexrelname,
+      idxScan:      Number(r.idx_scan),
+      idxTupRead:   Number(r.idx_tup_read),
+      idxTupFetch:  Number(r.idx_tup_fetch),
+    }));
+  }
+
   /**
    * #285b — Table sizes: total on-disk size (table + indexes + TOAST) per table,
    * ordered largest first.  Useful for capacity planning and spotting unexpected growth.
