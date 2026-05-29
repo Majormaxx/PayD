@@ -201,6 +201,84 @@ export class DbScalingService {
     }));
   }
 
+  // ── Part 37 (#282) ───────────────────────────────────────────────────────
+
+  /**
+   * #282a — Connection breakdown: active connections grouped by state and
+   * application name from pg_stat_activity.
+   */
+  async getConnectionBreakdown(): Promise<{
+    state: string;
+    applicationName: string;
+    count: number;
+  }[]> {
+    const rows = await this.prisma.$queryRaw<Array<{
+      state: string;
+      application_name: string;
+      cnt: bigint;
+    }>>`
+      SELECT
+        COALESCE(state, 'unknown')           AS state,
+        COALESCE(application_name, '')       AS application_name,
+        count(*)                             AS cnt
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+      GROUP BY state, application_name
+      ORDER BY cnt DESC
+    `;
+    return rows.map(r => ({
+      state:           r.state,
+      applicationName: r.application_name,
+      count:           Number(r.cnt),
+    }));
+  }
+
+  /**
+   * #282b — Scaling-relevant database settings from pg_settings.
+   * Returns a curated subset of parameters that affect connection pooling,
+   * memory, and query performance.
+   */
+  async getDbSettings(): Promise<{
+    name: string;
+    setting: string;
+    unit: string | null;
+    category: string;
+  }[]> {
+    const rows = await this.prisma.$queryRaw<Array<{
+      name: string;
+      setting: string;
+      unit: string | null;
+      category: string;
+    }>>`
+      SELECT name, setting, unit, category
+      FROM pg_settings
+      WHERE name IN (
+        'max_connections',
+        'shared_buffers',
+        'work_mem',
+        'maintenance_work_mem',
+        'effective_cache_size',
+        'random_page_cost',
+        'seq_page_cost',
+        'max_wal_size',
+        'min_wal_size',
+        'checkpoint_completion_target',
+        'autovacuum_vacuum_scale_factor',
+        'autovacuum_analyze_scale_factor',
+        'statement_timeout',
+        'idle_in_transaction_session_timeout',
+        'lock_timeout'
+      )
+      ORDER BY name
+    `;
+    return rows.map(r => ({
+      name:     r.name,
+      setting:  r.setting,
+      unit:     r.unit,
+      category: r.category,
+    }));
+  }
+
   // ── Part 39 (#284) ───────────────────────────────────────────────────────
 
   /**
