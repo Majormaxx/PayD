@@ -106,6 +106,47 @@ router.get('/long-running-transactions', (req, res, next) => ctrl.getLongRunning
 // Issue #292 — vacuum / analyse stats
 router.get('/vacuum-stats', (req, res, next) => ctrl.getVacuumStats(req, res, next));
 
+// ── Part 37 (#282) ──────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/connection-breakdown:
+ *   get:
+ *     summary: Active connections grouped by state and application (Part 37)
+ *     description: >
+ *       Aggregates pg_stat_activity rows for the current database by backend
+ *       state and application_name. Useful for spotting connection leaks or
+ *       idle-in-transaction buildup per client.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Connection breakdown rows
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/connection-breakdown', (req, res, next) => ctrl.getConnectionBreakdown(req, res, next));
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/db-settings:
+ *   get:
+ *     summary: Scaling-relevant PostgreSQL configuration parameters (Part 37)
+ *     description: >
+ *       Returns a curated subset of pg_settings that affect connection pooling,
+ *       memory allocation, WAL sizing, autovacuum, and query timeouts.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Database settings list
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/db-settings', (req, res, next) => ctrl.getDbSettings(req, res, next));
+
 // ── Part 39 (#284) ──────────────────────────────────────────────────────────
 
 /**

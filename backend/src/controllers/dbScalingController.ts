@@ -104,6 +104,30 @@ export class DbScalingController {
     }
   }
 
+  // ── Part 37 (#282) ─────────────────────────────────────────────────────
+
+  /** #282a — Connections grouped by state and application name. */
+  async getConnectionBreakdown(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getConnectionBreakdown();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch connection breakdown');
+      next(err);
+    }
+  }
+
+  /** #282b — Scaling-relevant pg_settings parameters. */
+  async getDbSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getDbSettings();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch db settings');
+      next(err);
+    }
+  }
+
   // ── Part 39 (#284) ─────────────────────────────────────────────────────
 
   /** #284a — Lock contention between concurrent backends. */
