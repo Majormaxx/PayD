@@ -4,6 +4,12 @@ import { Keypair } from '@stellar/stellar-sdk';
 import { findConversionPaths, type PathfindRequest } from '../services/crossAssetPaymentService.js';
 import { Sep31TrackingService } from '../services/sep31TrackingService.js';
 
+const STELLAR_ASSET_REGEX = /^(native|[A-Z0-9]{1,12}:G[A-Z2-7]{55})$/;
+
+function isValidStellarAssetIdentifier(asset: unknown): asset is string {
+  return typeof asset === 'string' && STELLAR_ASSET_REGEX.test(asset);
+}
+
 export class PaymentController {
   /**
    * GET /api/payments/anchor-info
@@ -71,6 +77,16 @@ export class PaymentController {
     if (!fromAsset || !toAsset || !amount || amount <= 0) {
       return res.status(400).json({
         error: 'Invalid pathfind request: fromAsset, toAsset, and positive amount required',
+      });
+    }
+
+    if (
+      !isValidStellarAssetIdentifier(fromAsset) ||
+      !isValidStellarAssetIdentifier(toAsset)
+    ) {
+      return res.status(400).json({
+        error:
+          'Invalid asset identifier: assets must be "native" or "CODE:ISSUER" with a valid Stellar issuer account',
       });
     }
 

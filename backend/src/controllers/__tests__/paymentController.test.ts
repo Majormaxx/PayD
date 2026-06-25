@@ -2,6 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { PaymentController } from '../paymentController.js';
 import { AnchorService } from '../../services/anchorService.js';
+import { findConversionPaths } from '../../services/crossAssetPaymentService.js';
 
 jest.mock('../../services/anchorService.js', () => ({
   AnchorService: {
@@ -19,6 +20,10 @@ jest.mock('@stellar/stellar-sdk', () => ({
       publicKey: () => (secret === 'SVALID' ? 'GSENDER' : 'GBAD'),
     })),
   },
+}));
+
+jest.mock('../../services/crossAssetPaymentService.js', () => ({
+  findConversionPaths: jest.fn(),
 }));
 
 describe('PaymentController SEP-24 endpoints', () => {
@@ -69,5 +74,27 @@ describe('PaymentController SEP-24 endpoints', () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.location).toBe('https://anchor.example/interactive/withdraw-1');
+  });
+});
+
+describe('PaymentController pathfinding', () => {
+  const app = express();
+  app.use(express.json());
+  app.post('/pathfind', PaymentController.findPaths);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('rejects malformed asset identifiers before pathfinding', async () => {
+    const response = await request(app).post('/pathfind').send({
+      fromAsset: 'not-a-stellar-asset',
+      toAsset: 'native',
+      amount: '10',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Invalid asset identifier');
+    expect(findConversionPaths).not.toHaveBeenCalled();
   });
 });
