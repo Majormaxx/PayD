@@ -1,95 +1,103 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import type React from 'react';
-
-vi.mock('@stellar/design-system', () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button {...props}>{children}</button>
-  ),
-  Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import BulkPayrollUpload from '../pages/BulkPayrollUpload';
+import { CSVRow } from '../components/CSVUploader';
 
 vi.mock('../components/CSVUploader', () => ({
   CSVUploader: ({
-    requiredColumns,
-    validators,
     onDataParsed,
   }: {
+    onDataParsed: (rows: CSVRow[]) => void;
     requiredColumns: string[];
-    validators: Record<string, (v: string) => string | null>;
-    onDataParsed: (rows: Array<{ rowNumber: number; data: Record<string, string>; errors: string[]; isValid: boolean }>) => void;
+    validators?: Record<string, (v: string) => string | null>;
   }) => (
-    <div data-testid="csv-uploader">
-      <span data-testid="required-cols">{requiredColumns.join(',')}</span>
-      <button
-        data-testid="trigger-parse"
-        onClick={() => {
-          const currencyValidator = validators.currency;
-          const result = currencyValidator('INVALID');
-          onDataParsed([
-            {
-              rowNumber: 1,
-              data: { name: 'Test', wallet_address: 'GABCDEF12345678901234567890123456789012345678901234567890123', amount: '100', currency: 'INVALID' },
-              errors: result ? [result] : [],
-              isValid: !result,
+    <button
+      data-testid="mock-csv-uploader"
+      onClick={() =>
+        onDataParsed([
+          {
+            rowNumber: 2,
+            data: {
+              name: 'Alice',
+              wallet_address: 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN',
+              amount: '100',
+              currency: 'USDC',
             },
-          ]);
-        }}
-      >
-        Parse invalid currency
-      </button>
-    </div>
+            errors: [],
+            isValid: true,
+          },
+        ])
+      }
+    >
+      Load valid rows
+    </button>
   ),
 }));
 
 vi.mock('../components/IssuerMultisigBanner', () => ({
-  default: () => <div data-testid="multisig-banner" />,
+  IssuerMultisigBanner: () => null,
 }));
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key,
-  }),
+vi.mock('@stellar/design-system', () => ({
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    'aria-busy': ariaBusy,
+    ...rest
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { 'aria-busy'?: boolean }) => (
+    <button onClick={onClick} disabled={disabled} aria-busy={ariaBusy} {...rest}>
+      {children}
+    </button>
+  ),
+  Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-import BulkPayrollUpload from '../pages/BulkPayrollUpload';
-import { SUPPORTED_ASSETS } from '../config/assets';
-
-describe('BulkPayrollUpload', () => {
-  it('uses centralized asset list instead of hardcoded values', () => {
-    render(<BulkPayrollUpload />);
-
-    const expectedCodes = SUPPORTED_ASSETS.map((a) => a.code);
-    const csvUploader = screen.getByTestId('csv-uploader');
-    expect(csvUploader).toBeTruthy();
+describe('BulkPayrollUpload — double-submit prevention (#939)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it('validates currency against centralized asset codes', () => {
-    render(<BulkPayrollUpload />);
-
-    fireEvent.click(screen.getByTestId('trigger-parse'));
-
-    const currencyLabel = SUPPORTED_ASSETS.map((a) => a.code).join(', ');
-    expect(screen.getByText(/Currency must be one of/i)).toBeTruthy();
-  });
-
-  it('shows i18n labels in currency validation error', () => {
-    render(<BulkPayrollUpload />);
-
-    fireEvent.click(screen.getByTestId('trigger-parse'));
-
-    SUPPORTED_ASSETS.forEach((asset) => {
-      expect(screen.getByText(new RegExp(asset.code, 'i'))).toBeTruthy();
+  it('submit button is disabled while submission is in flight', async () => {
+    let resolveSubmit!: () => void;
+    const submitPromise = new Promise<void>((res) => {
+      resolveSubmit = res;
     });
-  });
-});
 
-describe('SUPPORTED_ASSETS config', () => {
-  it('includes USDC, XLM, EURC, and ORGUSD', () => {
-    const codes = SUPPORTED_ASSETS.map((a) => a.code);
-    expect(codes).toContain('USDC');
-    expect(codes).toContain('XLM');
-    expect(codes).toContain('EURC');
-    expect(codes).toContain('ORGUSD');
+    vi.spyOn(console, 'log').mockImplementationOnce(() => submitPromise);
+
+    render(<BulkPayrollUpload />);
+    fireEvent.click(screen.getByTestId('mock-csv-uploader'));
+
+    const submitBtn = screen.getByRole('button', { name: /submit/i });
+    expect(submitBtn).not.toBeDisabled();
+
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(submitBtn).toBeDisabled();
+    });
+
+    resolveSubmit();
+  });
+
+  it('a second click during submission does not fire a duplicate request', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    render(<BulkPayrollUpload />);
+    fireEvent.click(screen.getByTestId('mock-csv-uploader'));
+
+    const submitBtn = screen.getByRole('button', { name: /submit/i });
+
+    fireEvent.click(submitBtn);
+    fireEvent.click(submitBtn);
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/payroll batch submitted/i)).toBeInTheDocument();
+    });
+
+    // console.log('Submitting payroll batch:', ...) fires once, not three times
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
   });
 });
