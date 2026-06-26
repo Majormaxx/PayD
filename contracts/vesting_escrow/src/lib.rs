@@ -37,6 +37,8 @@ pub enum ContractError {
     DurationOverflow = 14,
     /// Accounting invariant violated: clawback amount exceeds remaining total.
     InvariantViolation = 15,
+    /// New beneficiary is the same as the current beneficiary.
+    SameBeneficiary = 16,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -670,6 +672,10 @@ impl VestingContract {
             .ok_or(ContractError::NotInitialized)?;
 
         config.clawback_admin.require_auth();
+
+        if new_beneficiary == config.beneficiary {
+            return Err(ContractError::SameBeneficiary);
+        }
 
         if !config.is_active {
             return Err(ContractError::GrantInactive);
