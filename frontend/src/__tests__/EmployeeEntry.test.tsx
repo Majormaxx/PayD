@@ -122,7 +122,7 @@ const MOCK_PUBLIC = 'G' + 'B'.repeat(55);
 
 vi.mock('@stellar/stellar-sdk', () => ({
   Keypair: {
-    fromSecret: (_: string) => ({ publicKey: () => MOCK_PUBLIC }),
+    fromSecret: () => ({ publicKey: () => MOCK_PUBLIC }),
     random: () => ({ publicKey: () => MOCK_PUBLIC, secret: () => MOCK_SECRET }),
   },
 }));
