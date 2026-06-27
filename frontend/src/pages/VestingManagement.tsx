@@ -6,13 +6,12 @@ import {
   TrendingUp,
   RefreshCw,
   AlertCircle,
-  CheckCircle2,
   Gift,
   Loader2,
   Calendar,
   Lock,
 } from 'lucide-react';
-import { Button, Card } from '@stellar/design-system';
+import { Card } from '@stellar/design-system';
 import { useNotification } from '../hooks/useNotification';
 import { useWallet } from '../hooks/useWallet';
 import { useSorobanContract } from '../hooks/useSorobanContract';

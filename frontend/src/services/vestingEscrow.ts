@@ -30,11 +30,6 @@ export interface VestingProgress {
   claimable: string;
 }
 
-function getHorizonUrl(): string {
-  const envUrl = import.meta.env.PUBLIC_STELLAR_HORIZON_URL as string | undefined;
-  return envUrl?.replace(/\/+$/, '') || 'https://horizon-testnet.stellar.org';
-}
-
 function getRpcUrl(): string {
   const envRpc = import.meta.env.PUBLIC_STELLAR_RPC_URL as string | undefined;
   return envRpc?.replace(/\/+$/, '') || 'https://soroban-testnet.stellar.org';
@@ -71,12 +66,19 @@ async function simulateRead(contractId: string, method: string, args: unknown[] 
   return scValToNative(retval);
 }
 
+function toString(val: unknown, fallback = '0'): string {
+  if (typeof val === 'string') return val;
+  if (typeof val === 'bigint') return val.toString();
+  if (typeof val === 'number') return val.toString();
+  return fallback;
+}
+
 export async function fetchVestingConfig(contractId: string): Promise<VestingConfig> {
   const raw = await simulateRead(contractId, 'get_config') as Record<string, unknown>;
   return {
-    admin: String(raw?.admin ?? ''),
-    beneficiary: String(raw?.beneficiary ?? ''),
-    totalAmount: String(raw?.total_amount ?? raw?.totalAmount ?? '0'),
+    admin: toString(raw?.admin, ''),
+    beneficiary: toString(raw?.beneficiary, ''),
+    totalAmount: toString(raw?.total_amount ?? raw?.totalAmount),
     cliffDuration: Number(raw?.cliff_duration ?? raw?.cliffDuration ?? 0),
     startTime: Number(raw?.start_time ?? raw?.startTime ?? 0),
     duration: Number(raw?.duration ?? 0),
@@ -85,9 +87,9 @@ export async function fetchVestingConfig(contractId: string): Promise<VestingCon
 
 export async function fetchVestingSnapshot(contractId: string): Promise<VestingSnapshot> {
   const raw = await simulateRead(contractId, 'get_vesting_snapshot') as Record<string, unknown>;
-  const vested = String(raw?.vested_amount ?? raw?.vestedAmount ?? '0');
-  const claimable = String(raw?.claimable_amount ?? raw?.claimableAmount ?? '0');
-  const locked = String(raw?.locked_amount ?? raw?.lockedAmount ?? '0');
+  const vested = toString(raw?.vested_amount ?? raw?.vestedAmount);
+  const claimable = toString(raw?.claimable_amount ?? raw?.claimableAmount);
+  const locked = toString(raw?.locked_amount ?? raw?.lockedAmount);
   const progress = Number(raw?.progress_bps ?? raw?.progressBps ?? 0);
 
   return { vestedAmount: vested, claimableAmount: claimable, lockedAmount: locked, progressBps: progress };
@@ -95,12 +97,12 @@ export async function fetchVestingSnapshot(contractId: string): Promise<VestingS
 
 export async function fetchVestedAmount(contractId: string): Promise<string> {
   const raw = await simulateRead(contractId, 'get_vested_amount');
-  return String(raw ?? '0');
+  return toString(raw);
 }
 
 export async function fetchClaimableAmount(contractId: string): Promise<string> {
   const raw = await simulateRead(contractId, 'get_claimable_amount');
-  return String(raw ?? '0');
+  return toString(raw);
 }
 
 export async function fetchVestingProgress(contractId: string): Promise<VestingProgress> {
