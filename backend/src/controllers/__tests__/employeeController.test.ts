@@ -123,6 +123,19 @@ describe('EmployeeController', () => {
     it('should return 400 for invalid query params', async () => {
       await request(app).get('/api/employees?status=invalid_status').expect(400);
     });
+
+    it('should return 400 when limit exceeds maximum allowed value', async () => {
+      const response = await request(app).get('/api/employees?limit=999999').expect(400);
+
+      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
+      expect(response.body).toHaveProperty('message', 'Validation Error');
+      expect(employeeService.findAll).not.toHaveBeenCalled();
+    });
+
+    it('should return 400 when page is zero or negative', async () => {
+      await request(app).get('/api/employees?page=0').expect(400);
+      expect(employeeService.findAll).not.toHaveBeenCalled();
+    });
   });
 
   describe('GET /api/employees/:id', () => {

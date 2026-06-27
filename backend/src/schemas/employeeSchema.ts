@@ -56,19 +56,17 @@ export const createEmployeeSchema = z.object({
 
 export const updateEmployeeSchema = createEmployeeSchema.partial().omit({ organization_id: true });
 
+export const EMPLOYEE_LIST_MAX_LIMIT = 100;
+
 export const employeeQuerySchema = z.object({
-  page: z
-    .string()
-    .regex(/^\d+$/)
-    .transform(Number)
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(EMPLOYEE_LIST_MAX_LIMIT)
     .optional()
-    .default('1' as any),
-  limit: z
-    .string()
-    .regex(/^\d+$/)
-    .transform(Number)
-    .optional()
-    .default('10' as any),
+    .default(10),
   q: z.string().optional(),
   search: z.string().optional(),
   status: z.enum(['active', 'inactive', 'pending']).optional(),

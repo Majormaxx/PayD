@@ -38,6 +38,7 @@ import contractRoutes from './routes/contractRoutes.js';
 import ratesRoutes from './routes/ratesRoutes.js';
 import stellarThrottlingRoutes from './routes/stellarThrottlingRoutes.js';
 import scalingRoutes from './routes/scalingRoutes.js';
+import { MAX_BULK_IMPORT_REQUEST_BYTES } from './schemas/bulkImportSchema.js';
 
 const __appFilename = fileURLToPath(import.meta.url);
 const __appDirname = path.dirname(__appFilename);
@@ -83,7 +84,17 @@ app.use(requestIdMiddleware);
 // Structured JSON request logging + Prometheus metrics (replaces morgan)
 app.use(requestLogger);
 app.use(metricsMiddleware);
-app.use(express.json());
+
+const defaultJsonParser = express.json();
+const bulkImportJsonParser = express.json({ limit: MAX_BULK_IMPORT_REQUEST_BYTES });
+
+app.use((req, res, next) => {
+  if (req.method === 'POST' && /\/employees\/bulk-import\/?$/.test(req.path)) {
+    return bulkImportJsonParser(req, res, next);
+  }
+  return defaultJsonParser(req, res, next);
+});
+
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
